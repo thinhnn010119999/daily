@@ -134,14 +134,14 @@
             <th class="muted" colspan="5">Số lá còn lại (≥ 0)</th>
             <th class="muted" colspan="5">Sau làm tròn</th>
             <th class="muted" colspan="5">Điểm +/-</th>
-            <th>Điều chỉnh</th>
+            <th>Sâm/Cháy</th>
           </tr>
           <tr>
             <th></th><th></th>
             <th id="hC"></th><th id="hD"></th><th id="hE"></th><th id="hF"></th><th id="hG"></th>
             <th id="hH"></th><th id="hI"></th><th id="hJ"></th><th id="hK"></th><th id="hL"></th>
             <th id="hM"></th><th id="hN"></th><th id="hO"></th><th id="hP"></th><th id="hQ"></th>
-            <th class="small">0 / ±20 / ±30</th>
+            <th class="small">Sâm/Cháy</th>
           </tr>
         </thead>
         <tbody id="body"></tbody>
@@ -524,7 +524,7 @@
 
       const tdAdj=document.createElement('td');
       const selAdj=document.createElement('select');
-      const options=[0,20,-20,30,-30];
+      const options=[0,80,120];
       selAdj.innerHTML=options.map(v=>`<option value="${v}">${v>0? '+'+v: v}</option>`).join('');
       selAdj.value=String(Number(r.adjust||0));
       selAdj.addEventListener('change',()=>{ r.adjust=Number(selAdj.value)||0; persistAndRerender(); });
@@ -616,9 +616,8 @@
       topGrid.appendChild(winnerWrap);
 
       const adjWrap = document.createElement('div'); adjWrap.className='form-row';
-      const adjLbl = document.createElement('label'); adjLbl.textContent = 'Điều chỉnh (0/±20/±30)';
       const adjSel = document.createElement('select');
-      [0,20,-20,30,-30].forEach(v=>{
+      [0,80,120].forEach(v=>{
         const op=document.createElement('option'); op.value=String(v); op.textContent = (v>0? '+'+v: String(v)); adjSel.appendChild(op);
       });
       adjSel.value = String(Number(r.adjust||0));
@@ -628,7 +627,6 @@
         persistAndRerender();
         setTimeout(()=>scrollToRound(idx), 60);
       });
-      adjWrap.appendChild(adjLbl); adjWrap.appendChild(adjSel);
       topGrid.appendChild(adjWrap);
 
       sectionTop.appendChild(topGrid);
