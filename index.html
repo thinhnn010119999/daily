@@ -117,6 +117,16 @@
       <label class="small"><input type="checkbox" id="distributeAdjust" /> Trừ đều điều chỉnh cho 4 người thua</label>
       <span class="small muted">Bật: người thắng +adj, 4 người thua chia đều −adj (phần lẻ bù tuần tự). Tắt: chỉ áp vào người thắng.</span>
     </div>
+
+    <!-- Toggle toàn cục: Làm tròn số lẻ -->
+    <div class="row" style="margin-top:8px">
+      <label class="small">
+        <input type="checkbox" id="roundingToggle" checked />
+        Làm tròn số lẻ (3→4, 7→8)
+      </label>
+      <span class="small muted">Tắt: dùng giá trị thực, không làm tròn.</span>
+    </div>
+
     <div class="row" style="margin-top:8px">
       <button class="btn" id="scrollTopBtn">Cuộn đầu</button>
       <button class="btn" id="scrollBottomBtn">Cuộn cuối</button>
@@ -132,9 +142,9 @@
             <th>Ván</th>
             <th>Người thắng</th>
             <th class="muted" colspan="5">Số lá còn lại (≥ 0)</th>
-            <th class="muted" colspan="5">Sau làm tròn</th>
+            <th id="hdrRoundedLabel" class="muted" colspan="5">Sau làm tròn</th>
             <th class="muted" colspan="5">Điểm +/-</th>
-            <th>Sâm/Cháy</th>
+            <th>Sâm/cháy</th>
           </tr>
           <tr>
             <th></th><th></th>
@@ -148,7 +158,7 @@
       </table>
     </div>
     <div class="small muted" style="margin-top:8px">
-      * Lẻ → làm tròn lên; chẵn giữ nguyên. Người thắng nhận tổng sau làm tròn của người thua; mỗi người thua bị trừ phần của mình. Không giới hạn số lá (≥ 0).
+      * Lẻ → làm tròn lên; chẵn giữ nguyên (nếu bật). Tắt làm tròn: dùng giá trị thực. Người thắng nhận tổng của người thua (theo chế độ làm tròn/không làm tròn). Không giới hạn số lá (≥ 0).
     </div>
   </div>
 
@@ -166,7 +176,7 @@
     </div>
     <div id="cards" class="cards"></div>
     <div class="small muted" style="margin-top:8px">
-      * Lẻ → làm tròn lên; chẵn giữ nguyên. Người thắng nhận tổng sau làm tròn của người thua; mỗi người thua bị trừ phần của mình. Không giới hạn số lá (≥ 0).  
+      * Lẻ → làm tròn lên; chẵn giữ nguyên (nếu bật). Tắt làm tròn: dùng giá trị thực.  
       • Tip: dùng “↑/↓” hoặc nhập ván # để nhảy nhanh, không cần vuốt liên tục.
     </div>
   </div>
@@ -181,6 +191,7 @@
           <th>Tổng lá bài thắng (+/-)</th>
           <th>Số ván thắng</th>
           <th>Tổng số ván</th>
+          <th>Trung bình/1 ván thắng</th>
         </tr>
       </thead>
       <tbody id="sumBody"></tbody>
@@ -196,7 +207,7 @@
 (function(){
   const N=5;
   const $=sel=>document.querySelector(sel);
-  const LS_KEY='cardgame_5p_resp_v4'; // bump: scrollToRound window-based + fallback
+  const LS_KEY='cardgame_5p_resp_v5'; // bump: thêm roundingEnabled (toggle toàn cục)
 
   function defaultState(){
     return {
@@ -204,6 +215,7 @@
       // rounds: {winner: idx|null, remain:[number>=0], remainStr:[string], adjust:number, open:boolean}
       rounds:[],
       distributeAdjust: true,
+      roundingEnabled: true,  // <-- toggle toàn cục
       lastOpenIdx: 0
     };
   }
@@ -243,6 +255,7 @@
         const obj=JSON.parse(reader.result);
         if(!Array.isArray(obj.players)||obj.players.length!==5||!Array.isArray(obj.rounds)) throw new Error('Định dạng không hợp lệ');
         if(typeof obj.distributeAdjust!=='boolean') obj.distributeAdjust = true;
+        if(typeof obj.roundingEnabled!=='boolean') obj.roundingEnabled = true;
         if(typeof obj.lastOpenIdx!=='number') obj.lastOpenIdx = 0;
         obj.rounds.forEach(r=>{
           if(typeof r.adjust!=='number') r.adjust=0;
@@ -257,6 +270,7 @@
     reader.readAsText(f);
   });
 
+  // Toggle chia đều điều chỉnh
   const chk = document.getElementById('distributeAdjust');
   chk.checked = !!state.distributeAdjust;
   chk.addEventListener('change', ()=>{
@@ -264,6 +278,15 @@
     persistAndRerender();
   });
 
+  // Toggle làm tròn toàn cục
+  const roundChk = document.getElementById('roundingToggle');
+  roundChk.checked = !!state.roundingEnabled;
+  roundChk.addEventListener('change', ()=>{
+    state.roundingEnabled = roundChk.checked;
+    persistAndRerender();
+  });
+
+  // Desktop scroll buttons
   document.getElementById('scrollTopBtn').addEventListener('click', ()=> {
     if(grid && typeof grid.scrollTo === 'function') grid.scrollTo({top:0,behavior:'smooth'});
   });
@@ -372,6 +395,7 @@
       if(!s) return defaultState();
       const x=JSON.parse(s);
       if(typeof x.distributeAdjust!=='boolean') x.distributeAdjust = true;
+      if(typeof x.roundingEnabled!=='boolean') x.roundingEnabled = true;
       if(typeof x.lastOpenIdx!=='number') x.lastOpenIdx = 0;
       x.rounds.forEach(r=>{
         if(typeof r.adjust!=='number') r.adjust=0;
@@ -393,7 +417,6 @@
     });
     state.lastOpenIdx = state.rounds.length - 1;
     persistAndRerender();
-    // Auto scroll xuống ván mới (đợi DOM layout xong)
     setTimeout(()=>scrollToRound(state.lastOpenIdx), 80);
   }
 
@@ -401,6 +424,12 @@
     const ids=['hC','hD','hE','hF','hG','hH','hI','hJ','hK','hL','hM','hN','hO','hP','hQ'];
     const groups=[...state.players, ...state.players, ...state.players];
     ids.forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.textContent = groups[i]||''; });
+
+    // Đổi nhãn cột hiển thị theo toggle
+    const hdrRounded = document.getElementById('hdrRoundedLabel');
+    if(hdrRounded){
+      hdrRounded.textContent = state.roundingEnabled ? 'Sau làm tròn' : 'Giá trị (không làm tròn)';
+    }
   }
 
   function roundedNumber(x){
@@ -418,20 +447,28 @@
       if(!Number.isFinite(n) || n < 0) n = 0;
       return n;
     });
-    const roundeds = remainTemp.map(roundedNumber);
+
+    // Áp dụng toggle toàn cục
+    const effective = state.roundingEnabled
+      ? remainTemp.map(roundedNumber)  // bật làm tròn
+      : remainTemp.slice();            // tắt làm tròn: giữ nguyên
+
     const winner = (r.winner==null ? null : Number(r.winner));
 
+    // Tổng loại trừ người thắng
     let total = 0;
     for(let i=0;i<N;i++){
       if(i===winner) continue;
-      total += roundeds[i];
+      total += effective[i];
     }
 
+    // Delta cơ bản
     const delta = new Array(N).fill(0);
     for(let i=0;i<N;i++){
-      if(i===winner) delta[i]= total; else delta[i]= -roundeds[i];
+      if(i===winner) delta[i]= total; else delta[i]= -effective[i];
     }
 
+    // Điều chỉnh ±20/±30
     const adj = Number(r.adjust)||0;
     if(adj!==0 && winner!=null){
       if(state.distributeAdjust){
@@ -449,7 +486,7 @@
       }
     }
 
-    return { remain: remainTemp, roundeds, winner, total, delta };
+    return { remain: remainTemp, roundeds: effective, winner, total, delta };
   }
 
   // ===== Desktop Table =====
@@ -602,7 +639,7 @@
       winnerSel.innerHTML = '<option value="">-- chọn --</option>' + state.players.map((p,i)=>`<option value="${i}">${p}</option>`).join('');
       winnerSel.value = (r.winner===null? '': String(r.winner));
       winnerSel.addEventListener('change',()=>{
-        r.winner = winnerSel.value===''? null: Number(r.winner = winnerSel.value);
+        r.winner = winnerSel.value===''? null: Number(winnerSel.value);
         if(r.winner!=null){
           r.remain[r.winner]=0;
           if(!r.remainStr) r.remainStr = r.remain.map(n=>String(n));
@@ -616,6 +653,7 @@
       topGrid.appendChild(winnerWrap);
 
       const adjWrap = document.createElement('div'); adjWrap.className='form-row';
+      const adjLbl = document.createElement('label'); adjLbl.textContent = 'Sâm/cháy';
       const adjSel = document.createElement('select');
       [0,80,120].forEach(v=>{
         const op=document.createElement('option'); op.value=String(v); op.textContent = (v>0? '+'+v: String(v)); adjSel.appendChild(op);
@@ -627,6 +665,7 @@
         persistAndRerender();
         setTimeout(()=>scrollToRound(idx), 60);
       });
+      adjWrap.appendChild(adjLbl); adjWrap.appendChild(adjSel);
       topGrid.appendChild(adjWrap);
 
       sectionTop.appendChild(topGrid);
@@ -640,7 +679,13 @@
       if(!r.remainStr || r.remainStr.length!==N) r.remainStr = r.remain.map(n=>String(n));
       for(let i=0;i<N;i++){
         const col = document.createElement('div'); col.className='form-row';
-        const lb = document.createElement('label'); lb.innerHTML = `${state.players[i]} <span class="pill">làm tròn: ${calc.roundeds[i]}</span>`;
+
+        // Nhãn hiển thị theo toggle
+        const labelRounded = state.roundingEnabled
+          ? `làm tròn: ${calc.roundeds[i]}`
+          : `giá trị: ${calc.roundeds[i]}`;
+        const lb = document.createElement('label'); lb.innerHTML = `${state.players[i]} <span class="pill">${labelRounded}</span>`;
+
         const ip = document.createElement('input');
         ip.type='number'; ip.inputMode='numeric'; ip.step='1'; ip.min='0'; ip.placeholder='0';
         ip.value = (r.remainStr[i]!==undefined) ? r.remainStr[i] : String(r.remain[i]||0);
@@ -702,7 +747,7 @@
       const tdS=document.createElement('td'); tdS.textContent=sums[i]; tdS.style.textAlign='right'; tr.appendChild(tdS);
       const tdW=document.createElement('td'); tdW.textContent=wins[i]; tdW.style.textAlign='center'; tr.appendChild(tdW);
       const tdT=document.createElement('td'); tdT.textContent=totalRounds; tdT.style.textAlign='center'; tr.appendChild(tdT);
-      const tdA=document.createElement('td'); tdA.textContent = wins[i]>0 ? (sums[i]/wins[i]).toFixed(2) : ''; tdA.style.textAlign='center';
+      const tdA=document.createElement('td'); tdA.textContent = wins[i]>0 ? (sums[i]/wins[i]).toFixed(2) : ''; tdA.style.textAlign='center'; tr.appendChild(tdA);
       sb.appendChild(tr);
     }
   }
