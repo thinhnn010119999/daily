@@ -11,8 +11,24 @@
     }
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui, Segoe UI, Roboto, Arial}
-    .wrap{max-width:1100px;margin:24px auto;padding:0 12px}
-    h1{font-size:20px;margin:0 0 12px}
+
+    /* ===== Global header fixed ===== */
+    .global-header{
+        min-width: 300px;
+        width: 89%;
+      position: fixed; bottom:0; z-index:999;
+      background:linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+      border-bottom:1px solid var(--line);
+    }
+    .gh-inner{max-width:1100px;margin:0 auto;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+    .gh-title{font-weight:600}
+    .gh-right{display:flex;align-items:center;gap:16px}
+    .gh-pos{color:var(--pos)}
+    .gh-neg{color:var(--neg)}
+    .gh-right b{font-weight:700}
+
+    .wrap{max-width:1100px;margin:12px auto 24px;padding:0 12px}
+    h1{font-size:20px;margin:8px 0 12px}
     .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     label{font-size:12px;color:var(--muted)}
@@ -37,7 +53,7 @@
     /* Mobile cards */
     .mobile-only{display:none}
     .cards{display:grid;grid-template-columns:1fr;gap:10px}
-    .card{border:1px solid var(--line);border-radius:12px;background:#0b1020}
+    .card{border:1px solid var(--line);border-radius:12px;background:#0b1020;scroll-margin-top: 92px;} /* bù trừ header + sticky bar */
     .card-hd{display:flex;justify-content:space-between;align-items:center;padding:10px 12px}
     .card-left{display:flex;gap:10px;align-items:center}
     .card-hd h3{margin:0;font-size:15px}
@@ -71,11 +87,11 @@
     }
     .mobile-actions input[type=number]{width:120px}
 
-    /* Bù trừ khi scroll đến card (tránh bị sticky bar che) */
-    .card{ scroll-margin-top: 72px; }
-
-    /* Scroll snap trên mobile: lướt tay sẽ “bắt” vào đầu ván */
+    /* Scroll snap trên mobile */
     @media (max-width: 640px){
+        .btn-acc1 {
+            display: none;
+        }
       .wrap{padding:0 10px}
       .desktop-only{display:none}
       .mobile-only{display:block}
@@ -87,8 +103,12 @@
   </style>
 </head>
 <body>
+
+<!-- ===== Fixed header with totals ===== -->
+
+
 <div class="wrap">
-  <h1>Bảng theo dõi – 5 người (Responsive)</h1>
+  <h1>Responsive (Mobile-first)</h1>
 
   <!-- Config -->
   <div class="panel">
@@ -104,7 +124,7 @@
         </div>
       </div>
       <div class="row">
-        <button class="btn acc" id="addRound">+ Thêm ván</button>
+        <button class="btn-acc1 btn acc" id="addRound">+ Thêm ván</button>
         <button class="btn" id="clearAll">Xoá tất cả</button>
         <button class="btn" id="exportJson">Xuất JSON</button>
         <label for="importJson" class="btn">Nhập JSON</label>
@@ -144,21 +164,21 @@
             <th class="muted" colspan="5">Số lá còn lại (≥ 0)</th>
             <th id="hdrRoundedLabel" class="muted" colspan="5">Sau làm tròn</th>
             <th class="muted" colspan="5">Điểm +/-</th>
-            <th>Sâm/cháy</th>
+            <th>Điều chỉnh</th>
           </tr>
           <tr>
             <th></th><th></th>
             <th id="hC"></th><th id="hD"></th><th id="hE"></th><th id="hF"></th><th id="hG"></th>
             <th id="hH"></th><th id="hI"></th><th id="hJ"></th><th id="hK"></th><th id="hL"></th>
             <th id="hM"></th><th id="hN"></th><th id="hO"></th><th id="hP"></th><th id="hQ"></th>
-            <th class="small">Sâm/Cháy</th>
+            <th class="small">0 / ±20 / ±30</th>
           </tr>
         </thead>
         <tbody id="body"></tbody>
       </table>
     </div>
     <div class="small muted" style="margin-top:8px">
-      * Lẻ → làm tròn lên; chẵn giữ nguyên (nếu bật). Tắt làm tròn: dùng giá trị thực. Người thắng nhận tổng của người thua (theo chế độ làm tròn/không làm tròn). Không giới hạn số lá (≥ 0).
+      * Lẻ → làm tròn lên (nếu bật). Tắt làm tròn: dùng giá trị thực. Người thắng nhận tổng của người thua (theo chế độ đang chọn). Không giới hạn số lá (≥ 0).
     </div>
   </div>
 
@@ -166,6 +186,7 @@
   <div class="panel mobile-only">
     <div class="mobile-sticky" style="margin-bottom:10px">
       <div class="mobile-actions">
+        <button class="btn acc" id="addRoundSticky">+ Thêm ván</button>
         <button class="btn" id="prevRoundBtn">↑ Ván trước</button>
         <button class="btn" id="nextRoundBtn">↓ Ván sau</button>
         <input id="jumpInput" type="number" min="1" placeholder="Đi đến ván #" />
@@ -176,8 +197,8 @@
     </div>
     <div id="cards" class="cards"></div>
     <div class="small muted" style="margin-top:8px">
-      * Lẻ → làm tròn lên; chẵn giữ nguyên (nếu bật). Tắt làm tròn: dùng giá trị thực.  
-      • Tip: dùng “↑/↓” hoặc nhập ván # để nhảy nhanh, không cần vuốt liên tục.
+      * Lẻ → làm tròn lên (nếu bật). Tắt làm tròn: dùng giá trị thực.  
+      • Tip: dùng “+ Thêm ván” trong thanh sticky, “↑/↓” hoặc nhập ván # để nhảy nhanh.
     </div>
   </div>
 
@@ -198,8 +219,17 @@
     </table>
   </div>
 
-  <div class="panel small muted">
-    <b>Mẹo mobile:</b> dùng nút <b>▶ Mở/Đóng</b> từng ván + “↑/↓/Đi đến ván #” để điều hướng nhanh. Xoá ô để gõ lại; hệ thống chỉ lưu & chuẩn hoá khi rời ô hoặc nhấn Enter (preview realtime vẫn cập nhật).
+  <div style="position: relative;" class="panel small muted">
+    <div class="global-header">
+  <div class="gh-inner">
+    <div class="gh-title">Bảng theo dõi – 5 người</div>
+    <div class="gh-right">
+      <span class="gh-pos">Tổng +: <b id="ghPos">0</b></span>
+      <span class="gh-neg">Tổng −: <b id="ghNeg">0</b></span>
+    </div>
+  </div>
+</div>
+    <!-- <b>Mẹo mobile:</b> dùng nút <b>▶ Mở/Đóng</b> từng ván + “↑/↓/Đi đến ván #” để điều hướng nhanh. Xoá ô để gõ lại; hệ thống chỉ lưu & chuẩn hoá khi rời ô hoặc nhấn Enter (preview realtime vẫn cập nhật). -->
   </div>
 </div>
 
@@ -207,7 +237,7 @@
 (function(){
   const N=5;
   const $=sel=>document.querySelector(sel);
-  const LS_KEY='cardgame_5p_resp_v5'; // bump: thêm roundingEnabled (toggle toàn cục)
+  const LS_KEY='cardgame_5p_resp_v6'; // bump: fixed header totals + addRound in sticky
 
   function defaultState(){
     return {
@@ -215,7 +245,7 @@
       // rounds: {winner: idx|null, remain:[number>=0], remainStr:[string], adjust:number, open:boolean}
       rounds:[],
       distributeAdjust: true,
-      roundingEnabled: true,  // <-- toggle toàn cục
+      roundingEnabled: true,
       lastOpenIdx: 0
     };
   }
@@ -294,7 +324,8 @@
     if(grid && typeof grid.scrollTo === 'function') grid.scrollTo({top:grid.scrollHeight,behavior:'smooth'});
   });
 
-  // Mobile quick-nav
+  // Mobile sticky: add round + quick-nav
+  document.getElementById('addRoundSticky').addEventListener('click', ()=> addRound());
   const prevBtn = document.getElementById('prevRoundBtn');
   const nextBtn = document.getElementById('nextRoundBtn');
   const jumpBtn = document.getElementById('jumpBtn');
@@ -354,20 +385,20 @@
     const el = cards[idx];
     if (!el) return;
 
-    // Chiều cao sticky bar nếu có
+    // Chiều cao sticky bar + global header
     const sticky = document.querySelector('.mobile-sticky');
     const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
+    const gh = document.querySelector('.global-header');
+    const ghH = gh ? gh.getBoundingClientRect().height : 0;
 
-    // Toạ độ tuyệt đối của card trong trang
+    // Toạ độ card trong trang
     const rect = el.getBoundingClientRect();
     const pageY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    const targetTop = pageY + rect.top - (stickyH + 12); // trừ thêm 12px để thoáng
+    const targetTop = pageY + rect.top - (ghH + stickyH + 12); // trừ thêm 12px để thoáng
 
-    // Cuộn mượt nếu trình duyệt hỗ trợ
     try {
       window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
     } catch (e) {
-      // Fallback animation nếu browser không hỗ trợ 'smooth'
       animateScrollTo(Math.max(0, targetTop), 350);
     }
   }
@@ -387,8 +418,17 @@
     requestAnimationFrame(step);
   }
 
-  function persistAndRerender(){ save(); renderHeaders(); renderTable(); renderCards(); renderSummary(); }
+  function persistAndRerender(){
+    save();
+    renderHeaders();
+    renderTable();
+    renderCards();
+    renderSummary();
+    renderGlobalHeaderTotals(); // cập nhật totals trên header cố định
+  }
+
   function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
   function load(){
     try{
       const s=localStorage.getItem(LS_KEY);
@@ -488,9 +528,7 @@
 
     return { remain: remainTemp, roundeds: effective, winner, total, delta };
   }
-
-  // ===== Desktop Table =====
-  function renderTable(){
+    function renderTable(){
     const tb = document.getElementById('body');
     if(!tb) return;
     tb.innerHTML='';
@@ -728,16 +766,23 @@
     });
   }
 
-  function renderSummary(){
+  // Tính tổng (cho Summary & Header)
+  function computeTotals(){
     const sums=new Array(N).fill(0);
     const wins=new Array(N).fill(0);
     let totalRounds=0;
-
     state.rounds.forEach(r=>{
       const c=calcRow(r);
       for(let i=0;i<N;i++) sums[i]+=c.delta[i];
       if(c.winner!=null){ wins[c.winner]++; totalRounds++; }
     });
+    const pos = sums.reduce((a,b)=> a + (b>0? b:0), 0);
+    const neg = sums.reduce((a,b)=> a + (b<0? b:0), 0); // giá trị âm
+    return {sums, wins, totalRounds, pos, neg};
+  }
+
+  function renderSummary(){
+    const {sums, wins, totalRounds} = computeTotals();
 
     const sb=document.getElementById('sumBody');
     sb.innerHTML='';
@@ -752,11 +797,21 @@
     }
   }
 
+  // Cập nhật tổng dương/âm trên header cố định
+  function renderGlobalHeaderTotals(){
+    const {pos, neg} = computeTotals();
+    const p = document.getElementById('ghPos');
+    const n = document.getElementById('ghNeg');
+    if(p) p.textContent = pos;
+    if(n) n.textContent = neg; // giá trị âm
+  }
+
   // Initial render
   renderHeaders();
   renderTable();
   renderCards();
   renderSummary();
+  renderGlobalHeaderTotals();
   if(state.rounds.length===0){ addRound(); }
 })();
 </script>
