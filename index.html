@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scoreboard 5 Người – Làm tròn lẻ lên (PWA)</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a" />
+    <style>
+         :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --muted: #94a3b8;
+            --fg: #e5e7eb;
+            --acc: #22c55e;
+            --warn: #ef4444;
+            --line: #1f2937
+        }
+        
+        html,
+        body {
+            height: 100%
+        }
+        
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font: 14px/1.4 system-ui, Segoe UI, Roboto, Helvetica, Arial
+        }
+        
+        .wrap {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px
+        }
+        
+        h1 {
+            font-size: 20px;
+            margin: 0 0 12px
+        }
+        
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 14px;
+            margin: 12px 0
+        }
+        
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center
+        }
+        
+        label {
+            font-size: 12px;
+            color: var(--muted)
+        }
+        
+        input[type=text],
+        input[type=number],
+        select {
+            background: #0b1020;
+            border: 1px solid var(--line);
+            color: var(--fg);
+            padding: 8px;
+            border-radius: 8px
+        }
+        
+        input[type=number] {
+            width: 100px
+        }
+        
+        .btn {
+            background: #1f2937;
+            border: 1px solid var(--line);
+            color: var(--fg);
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer
+        }
+        
+        .btn:hover {
+            filter: brightness(1.1)
+        }
+        
+        .btn.acc {
+            background: var(--acc);
+            border-color: var(--acc);
+            color: #04110a
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse
+        }
+        
+        th,
+        td {
+            border-bottom: 1px solid var(--line);
+            padding: 8px;
+            text-align: center
+        }
+        
+        th {
+            position: sticky;
+            top: 0;
+            background: #0b1020;
+            z-index: 1
+        }
+        
+        .grid {
+            max-height: 520px;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 8px
+        }
+        
+        .muted {
+            color: var(--muted)
+        }
+        
+        .right {
+            text-align: right
+        }
+        
+        .center {
+            text-align: center
+        }
+        
+        .small {
+            font-size: 12px
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #0b1020;
+            border: 1px solid var(--line)
+        }
+        
+        .cell-win {
+            opacity: 0.7
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>Bảng theo dõi – 5 người (làm tròn lẻ lên) – PWA Offline</h1>
+        <div class="panel">
+            <div class="row" style="align-items:flex-end">
+                <div>
+                    <label>Tên người chơi (5):</label>
+                    <div class="row">
+                        <input id="p0" type="text" value="Người chơi 1" />
+                        <input id="p1" type="text" value="Người chơi 2" />
+                        <input id="p2" type="text" value="Người chơi 3" />
+                        <input id="p3" type="text" value="Người chơi 4" />
+                        <input id="p4" type="text" value="Người chơi 5" />
+                    </div>
+                </div>
+                <div class="row">
+                    <button class="btn acc" id="addRound">+ Thêm ván</button>
+                    <button class="btn" id="clearAll">Xoá tất cả</button>
+                    <button class="btn" id="exportJson">Xuất JSON</button>
+                    <label for="importJson" class="btn">Nhập JSON</label>
+                    <input id="importJson" type="file" accept="application/json" style="display:none" />
+                    <span class="tag small">Dữ liệu tự lưu vào <b>LocalStorage</b> & có thể dùng <b>offline</b></span>
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+                <label class="small"><input type="checkbox" id="distributeAdjust" /> Trừ đều điều chỉnh cho 4 người thua</label>
+                <span class="small muted">• Bật: người thắng nhận toàn bộ điều chỉnh, 4 người thua bị trừ đều (phần lẻ bù tuần tự). • Tắt: điều chỉnh chỉ áp vào người thắng.</span>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <button class="btn" id="scrollTopBtn">Cuộn đầu</button>
+                <button class="btn" id="scrollBottomBtn">Cuộn cuối</button>
+                <span class="small muted">Nếu bạn cài PWA (Add to Home Screen), có thể mở như app trên mobile.</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="grid" id="grid">
+                <table id="tbl">
+                    <thead>
+                        <tr id="hdr1">
+                            <th>Ván</th>
+                            <th>Người thắng</th>
+                            <th class="muted" colspan="5">Số lá còn lại (>=0)</th>
+                            <th class="muted" colspan="5">Sau làm tròn</th>
+                            <th class="muted" colspan="5">Điểm +/-</th>
+                            <th>Điều chỉnh</th>
+                        </tr>
+                        <tr id="hdr2">
+                            <th></th>
+                            <th></th>
+                            <th id="hC"></th>
+                            <th id="hD"></th>
+                            <th id="hE"></th>
+                            <th id="hF"></th>
+                            <th id="hG"></th>
+                            <th id="hH"></th>
+                            <th id="hI"></th>
+                            <th id="hJ"></th>
+                            <th id="hK"></th>
+                            <th id="hL"></th>
+                            <th id="hM"></th>
+                            <th id="hN"></th>
+                            <th id="hO"></th>
+                            <th id="hP"></th>
+                            <th id="hQ"></th>
+                            <th class="small">0 / ±20 / ±30</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body"></tbody>
+                </table>
+            </div>
+            <div class="small muted" style="margin-top:8px">
+                * Quy tắc: lẻ → làm tròn lên (3→4, 7→8), chẵn giữ nguyên. Người thắng nhận tổng sau làm tròn của người thua; mỗi người thua bị trừ phần của mình. Có thể đặt điều chỉnh ±20/±30 cho mỗi ván. <b>Không giới hạn số lá còn lại, chỉ cần ≥ 0.</b>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin:0 0 10px">Tổng kết</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Người chơi</th>
+                        <th>Tổng lá bài thắng (+/-)</th>
+                        <th>Số ván thắng</th>
+                        <th>Tổng số ván</th>
+                        <th>Trung bình/1 ván thắng</th>
+                    </tr>
+                </thead>
+                <tbody id="sumBody"></tbody>
+            </table>
+        </div>
+
+        <div class="panel small muted">
+            <b>Hướng dẫn</b>: Nhập tên 5 người. Bấm <i>+ Thêm ván</i> → chọn người thắng, điền số lá còn lại (>=0). Chọn điều chỉnh ±20/±30 nếu cần & chế độ chia đều. Dữ liệu lưu LocalStorage, có thể <i>Xuất/ Nhập JSON</i>. Bạn có thể <b>Add to Home Screen</b>            để dùng như app trên mobile.
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const N = 5;
+            const $ = sel => document.querySelector(sel);
+            const LS_KEY = 'cardgame_5p_pwa_v1';
+
+            function defaultState() {
+                return {
+                    players: ["Người chơi 1", "Người chơi 2", "Người chơi 3", "Người chơi 4", "Người chơi 5"],
+                    rounds: [], // {winner: idx|null, remain:[n0..n4>=0], adjust:number}
+                    distributeAdjust: true
+                };
+            }
+
+            let state = load();
+
+            // Bind tên
+            for (let i = 0; i < N; i++) {
+                const ip = document.getElementById('p' + i);
+                ip.value = state.players[i] || ('Người chơi ' + (i + 1));
+                ip.addEventListener('input', () => {
+                    state.players[i] = ip.value;
+                    persistAndRerender();
+                });
+            }
+
+            // Buttons
+            $('#addRound').addEventListener('click', addRound);
+            $('#clearAll').addEventListener('click', () => {
+                if (confirm('Xoá toàn bộ dữ liệu?')) {
+                    state = defaultState();
+                    persistAndRerender();
+                    for (let i = 0; i < N; i++) {
+                        document.getElementById('p' + i).value = state.players[i];
+                    }
+                }
+            });
+            $('#exportJson').addEventListener('click', () => {
+                const blob = new Blob([JSON.stringify(state, null, 2)], {
+                    type: 'application/json'
+                });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'cardgame_5players.json';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            });
+            $('#importJson').addEventListener('change', (e) => {
+                const f = e.target.files[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const obj = JSON.parse(reader.result);
+                        if (!Array.isArray(obj.players) || obj.players.length !== 5 || !Array.isArray(obj.rounds)) throw new Error('Định dạng không hợp lệ');
+                        if (typeof obj.distributeAdjust !== 'boolean') obj.distributeAdjust = true;
+                        obj.rounds.forEach(r => {
+                            if (typeof r.adjust !== 'number') r.adjust = 0;
+                            if (!Array.isArray(r.remain) || r.remain.length !== 5) r.remain = [0, 0, 0, 0, 0];
+                        });
+                        state = obj;
+                        persistAndRerender();
+                        for (let i = 0; i < N; i++) {
+                            document.getElementById('p' + i).value = state.players[i];
+                        }
+                    } catch (err) {
+                        alert('Import lỗi: ' + err.message);
+                    }
+                };
+                reader.readAsText(f);
+            });
+
+            const chk = document.getElementById('distributeAdjust');
+            chk.checked = !!state.distributeAdjust;
+            chk.addEventListener('change', () => {
+                state.distributeAdjust = chk.checked;
+                persistAndRerender();
+            });
+
+            const grid = document.getElementById('grid');
+            document.getElementById('scrollTopBtn').addEventListener('click', () => grid.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            }));
+            document.getElementById('scrollBottomBtn').addEventListener('click', () => grid.scrollTo({
+                top: grid.scrollHeight,
+                behavior: 'smooth'
+            }));
+
+            function persistAndRerender() {
+                save();
+                renderHeaders();
+                renderBody();
+                renderSummary();
+            }
+
+            function save() {
+                localStorage.setItem(LS_KEY, JSON.stringify(state));
+            }
+
+            function load() {
+                try {
+                    const s = localStorage.getItem(LS_KEY);
+                    if (!s) return defaultState();
+                    const x = JSON.parse(s);
+                    if (typeof x.distributeAdjust !== 'boolean') x.distributeAdjust = true;
+                    x.rounds.forEach(r => {
+                        if (typeof r.adjust !== 'number') r.adjust = 0;
+                    });
+                    return x;
+                } catch {
+                    return defaultState();
+                }
+            }
+
+            function addRound() {
+                state.rounds.push({
+                    winner: null,
+                    remain: [0, 0, 0, 0, 0],
+                    adjust: 0
+                });
+                persistAndRerender();
+                setTimeout(() => {
+                    grid.scrollTop = grid.scrollHeight
+                }, 50);
+            }
+
+            function renderHeaders() {
+                const ids = ['hC', 'hD', 'hE', 'hF', 'hG', 'hH', 'hI', 'hJ', 'hK', 'hL', 'hM', 'hN', 'hO', 'hP', 'hQ'];
+                const groups = [...state.players, ...state.players, ...state.players];
+                ids.forEach((id, i) => {
+                    const el = document.getElementById(id);
+                    el.textContent = groups[i] || '';
+                });
+            }
+
+            function rounded(x) {
+                if (x === null || x === undefined || x === '') return '';
+                x = Math.floor(Number(x) || 0);
+                if (x < 0) x = 0;
+                return (x % 2 === 1) ? x + 1 : x;
+            }
+
+            function calcRow(r) {
+                const remain = r.remain.map(v => {
+                    let n = Math.floor(Number(v) || 0);
+                    if (n < 0) n = 0;
+                    return n;
+                });
+                const roundeds = remain.map(rounded);
+                const winner = (r.winner === null || r.winner === undefined) ? null : Number(r.winner);
+                let total = 0;
+                for (let i = 0; i < N; i++) {
+                    if (i === winner) continue;
+                    total += roundeds[i];
+                }
+                const delta = new Array(N).fill(0);
+                for (let i = 0; i < N; i++) {
+                    if (i === winner) delta[i] = total;
+                    else delta[i] = -roundeds[i];
+                }
+                const adj = Number(r.adjust) || 0;
+                if (adj !== 0 && winner != null) {
+                    if (state.distributeAdjust) {
+                        delta[winner] += adj;
+                        const losers = [];
+                        for (let i = 0; i < N; i++) {
+                            if (i !== winner) losers.push(i);
+                        }
+                        const absAdj = Math.abs(adj);
+                        const q = Math.trunc(absAdj / losers.length);
+                        const rem = absAdj - q * losers.length;
+                        for (let idx = 0; idx < losers.length; idx++) {
+                            const i = losers[idx];
+                            let take = q + (idx < rem ? 1 : 0);
+                            delta[i] += (adj > 0 ? -take : +take);
+                        }
+                    } else {
+                        delta[winner] += adj;
+                    }
+                }
+                return {
+                    remain,
+                    roundeds,
+                    winner,
+                    total,
+                    delta
+                };
+            }
+
+            function renderBody() {
+                const tb = document.getElementById('body');
+                tb.innerHTML = '';
+                state.rounds.forEach((r, idx) => {
+                    const tr = document.createElement('tr');
+                    const tdIdx = document.createElement('td');
+                    tdIdx.textContent = idx + 1;
+                    tr.appendChild(tdIdx);
+                    const tdW = document.createElement('td');
+                    const sel = document.createElement('select');
+                    sel.innerHTML = '<option value="">-- chọn --</option>' + state.players.map((p, i) => `<option value="${i}">${p}</option>`).join('');
+                    sel.value = (r.winner === null ? '' : String(r.winner));
+                    sel.addEventListener('change', () => {
+                        r.winner = sel.value === '' ? null : Number(sel.value);
+                        if (r.winner != null) {
+                            r.remain[r.winner] = 0;
+                        }
+                        persistAndRerender();
+                    });
+                    tdW.appendChild(sel);
+                    tr.appendChild(tdW);
+                    const currentWinner = r.winner;
+                    for (let i = 0; i < N; i++) {
+                        const td = document.createElement('td');
+                        const ip = document.createElement('input');
+                        ip.type = 'number';
+                        ip.step = 1;
+                        ip.min = 0;
+                        ip.value = Number(r.remain[i] || 0);
+                        if (currentWinner === i) {
+                            ip.disabled = true;
+                            ip.classList.add('cell-win');
+                            ip.value = 0;
+                        }
+                        ip.addEventListener('input', () => {
+                            let v = Math.floor(Number(ip.value) || 0);
+                            if (v < 0) v = 0;
+                            r.remain[i] = v;
+                            if (r.winner === i) {
+                                r.remain[i] = 0;
+                            }
+                            persistAndRerender();
+                        });
+                        td.appendChild(ip);
+                        tr.appendChild(td);
+                    }
+                    const calc = calcRow(r);
+                    for (let i = 0; i < N; i++) {
+                        const td = document.createElement('td');
+                        td.textContent = calc.roundeds[i];
+                        tr.appendChild(td);
+                    }
+                    for (let i = 0; i < N; i++) {
+                        const td = document.createElement('td');
+                        const val = calc.delta[i];
+                        td.textContent = (val > 0 ? '+' + val : String(val));
+                        td.style.color = val >= 0 ? '#86efac' : '#fca5a5';
+                        tr.appendChild(td);
+                    }
+                    const tdAdj = document.createElement('td');
+                    const selAdj = document.createElement('select');
+                    const options = [0, 20, -20, 30, -30];
+                    selAdj.innerHTML = options.map(v => `<option value="${v}">${v>0? '+'+v: v}</option>`).join('');
+                    selAdj.value = String(Number(r.adjust || 0));
+                    selAdj.addEventListener('change', () => {
+                        r.adjust = Number(selAdj.value) || 0;
+                        persistAndRerender();
+                    });
+                    tdAdj.appendChild(selAdj);
+                    tr.appendChild(tdAdj);
+                    tb.appendChild(tr);
+                });
+            }
+
+            function renderSummary() {
+                const sums = new Array(N).fill(0);
+                const wins = new Array(N).fill(0);
+                let totalRounds = 0;
+                state.rounds.forEach(r => {
+                    const c = calcRow(r);
+                    for (let i = 0; i < N; i++) sums[i] += c.delta[i];
+                    if (c.winner != null) {
+                        wins[c.winner]++;
+                        totalRounds++;
+                    }
+                });
+                const sb = document.getElementById('sumBody');
+                sb.innerHTML = '';
+                for (let i = 0; i < N; i++) {
+                    const tr = document.createElement('tr');
+                    const tdN = document.createElement('td');
+                    tdN.textContent = state.players[i];
+                    tr.appendChild(tdN);
+                    const tdS = document.createElement('td');
+                    tdS.textContent = sums[i];
+                    tdS.className = 'right';
+                    tr.appendChild(tdS);
+                    const tdW = document.createElement('td');
+                    tdW.textContent = wins[i];
+                    tdW.className = 'center';
+                    tr.appendChild(tdW);
+                    const tdT = document.createElement('td');
+                    tdT.textContent = totalRounds;
+                    tdT.className = 'center';
+                    tr.appendChild(tdT);
+                    const tdA = document.createElement('td');
+                    tdA.textContent = wins[i] > 0 ? (sums[i] / wins[i]).toFixed(2) : '';
+                    tdA.className = 'center';
+                    tr.appendChild(tdA);
+                    sb.appendChild(tr);
+                }
+            }
+
+            // Register Service Worker for PWA offline
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('sw.js').catch(err => console.error('SW register failed', err));
+                });
+            }
+
+            // Initial
+            renderHeaders();
+            renderBody();
+            renderSummary();
+            if (state.rounds.length === 0) {
+                addRound();
+            }
+        })();
+    </script>
+</body>
+
+</html>
