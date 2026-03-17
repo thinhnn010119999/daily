@@ -2,21 +2,26 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>CRUD + Status Counter + Editable Dropdown</title>
+<title>Ứng viên - CRUD + Dropdown + Export Excel</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
 
+<!-- Bootstrap -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+
+<!-- SheetJS (Export Excel) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+</head>
 <body class="bg-light">
 
 <div class="container py-4">
-  <h3 class="text-center mb-4">Quản lý Ứng viên (CRUD + Stats + Editable Dropdown)</h3>
 
-  <!-- Editable Dropdown Section -->
+  <h3 class="text-center mb-4">Quản lý Ứng viên (Full CRUD + Dropdown + Export Excel)</h3>
+
+  <!-- Settings -->
   <div class="card mb-4">
     <div class="card-body">
-      <h5>Thiết lập Dropdown</h5>
-
+      <h5>Chỉnh sửa Dropdown</h5>
       <div class="row">
 
         <div class="col-md-6">
@@ -50,15 +55,16 @@
     </div>
   </div>
 
-  <!-- Add Form -->
+  <!-- Form Add -->
   <div class="card mb-4">
     <div class="card-body">
-      <h5>Thêm ứng viên</h5>
+      <h5>Thêm ứng viên mới</h5>
+
       <div class="row g-3">
 
         <div class="col-md-3">
           <label class="form-label">Tên ứng viên</label>
-          <input id="name" class="form-control">
+          <input id="candidateName" class="form-control">
         </div>
 
         <div class="col-md-2">
@@ -84,10 +90,12 @@
         <div class="col-12">
           <button onclick="addCandidate()" class="btn btn-primary mt-2">Thêm</button>
         </div>
-
       </div>
     </div>
   </div>
+
+  <!-- Export Excel -->
+  <button class="btn btn-success mb-3" onclick="exportExcel()">Export Excel</button>
 
   <!-- Table -->
   <table class="table table-bordered table-striped">
@@ -108,23 +116,13 @@
 </div>
 
 <script>
-/* ==================== STORAGE ==================== */
+
+/* STORAGE */
 let list = JSON.parse(localStorage.getItem("candidates") || "[]");
 let salesList = JSON.parse(localStorage.getItem("salesList") || `["Sales A","Sales B","Sales C"]`);
 let statusList = JSON.parse(localStorage.getItem("statusList") || `["pending","approval","reject"]`);
 
-/* ================== UPDATE DROPDown ================== */
-function updateDropdowns() {
-  salesList = document.getElementById("editSales").value.split("\n").map(x => x.trim()).filter(x => x);
-  statusList = document.getElementById("editStatus").value.split("\n").map(x => x.trim()).filter(x => x);
-
-  localStorage.setItem("salesList", JSON.stringify(salesList));
-  localStorage.setItem("statusList", JSON.stringify(statusList));
-
-  loadDropdowns();
-}
-
-/* ================== LOAD DROPDOWNS ================== */
+/* LOAD DROPDOWN */
 function loadDropdowns() {
   let sales = document.getElementById("sales");
   let status = document.getElementById("status");
@@ -139,7 +137,18 @@ function loadDropdowns() {
   document.getElementById("editStatus").value = statusList.join("\n");
 }
 
-/* ================== RENDER TABLE ================== */
+/* UPDATE DROPDOWN */
+function updateDropdowns() {
+  salesList = document.getElementById("editSales").value.split("\n").map(x => x.trim()).filter(x => x);
+  statusList = document.getElementById("editStatus").value.split("\n").map(x => x.trim()).filter(x => x);
+
+  localStorage.setItem("salesList", JSON.stringify(salesList));
+  localStorage.setItem("statusList", JSON.stringify(statusList));
+
+  loadDropdowns();
+}
+
+/* RENDER TABLE */
 function renderTable() {
   let tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
@@ -162,42 +171,65 @@ function renderTable() {
   updateCounters();
 }
 
-/* ================== STATUS COUNTER ================== */
+/* COUNT STATUS */
 function updateCounters() {
-  document.getElementById("countPending").innerText = list.filter(x => x.status === "pending").length;
-  document.getElementById("countApproval").innerText = list.filter(x => x.status === "approval").length;
-  document.getElementById("countReject").innerText = list.filter(x => x.status === "reject").length;
+  document.getElementById("countPending").innerText =
+    list.filter(x => x.status === "pending").length;
+
+  document.getElementById("countApproval").innerText =
+    list.filter(x => x.status === "approval").length;
+
+  document.getElementById("countReject").innerText =
+    list.filter(x => x.status === "reject").length;
 }
 
-/* ================== ADD ITEM ================== */
+/* ADD CANDIDATE */
 function addCandidate() {
   list.push({
-    name: name.value,
-    exp: exp.value,
-    sales: sales.value,
-    position: position.value,
-    status: status.value
+    name: document.getElementById("candidateName").value,
+    exp: document.getElementById("exp").value,
+    sales: document.getElementById("sales").value,
+    position: document.getElementById("position").value,
+    status: document.getElementById("status").value
   });
 
   localStorage.setItem("candidates", JSON.stringify(list));
   renderTable();
 
-  name.value = "";
+  candidateName.value = "";
   exp.value = "";
   position.value = "";
 }
 
-/* ================== DELETE ITEM ================== */
-function deleteItem(idx) {
-  list.splice(idx, 1);
+/* DELETE ITEM */
+function deleteItem(i) {
+  list.splice(i, 1);
   localStorage.setItem("candidates", JSON.stringify(list));
   renderTable();
+}
+
+/* EXPORT EXCEL */
+function exportExcel() {
+  let wb = XLSX.utils.book_new();
+  let data = [
+    ["STT", "Tên ứng viên", "Kinh nghiệm", "Sales", "Vị trí", "Status"]
+  ];
+
+  list.forEach((x, i) => {
+    data.push([ i + 1, x.name, x.exp, x.sales, x.position, x.status ]);
+  });
+
+  let ws = XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, "Danh sách");
+
+  XLSX.writeFile(wb, "Ung_vien.xlsx");
 }
 
 /* INIT */
 loadDropdowns();
 renderTable();
+
 </script>
 
 </body>
-</html>
+</html> 
