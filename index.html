@@ -2,21 +2,28 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Ứng viên - CRUD + Dropdown + Export Excel</title>
+<title>Ứng viên - CRUD Full + Search Dropdown + Export Excel</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- Bootstrap -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 
 <!-- SheetJS (Export Excel) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="script" href="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+
+<style>
+  /* Custom style cho search dropdown */
+  .dropdown-menu.show {
+    display: block;
+  }
+</style>
 
 </head>
 <body class="bg-light">
 
 <div class="container py-4">
 
-  <h3 class="text-center mb-4">Quản lý Ứng viên (Full CRUD + Dropdown + Export Excel)</h3>
+  <h3 class="text-center mb-4">Quản lý Ứng viên (Full CRUD + Search Dropdown + Export Excel)</h3>
 
   <!-- Settings -->
   <div class="card mb-4">
@@ -72,9 +79,13 @@
           <input id="exp" type="number" class="form-control">
         </div>
 
+        <!-- SALES SEARCH DROPDOWN -->
         <div class="col-md-3">
           <label class="form-label">Sales</label>
-          <select id="sales" class="form-select"></select>
+          <div class="dropdown">
+            <input type="text" class="form-control" id="salesSearch" placeholder="Tìm Sales...">
+            <div class="dropdown-menu w-100" id="salesMenu" style="max-height:200px; overflow-y:auto;"></div>
+          </div>
         </div>
 
         <div class="col-md-2">
@@ -107,6 +118,7 @@
         <th>Sales</th>
         <th>Vị trí</th>
         <th>Status</th>
+        <th>Ngày tạo</th>
         <th>Hành động</th>
       </tr>
     </thead>
@@ -116,28 +128,64 @@
 </div>
 
 <script>
-
 /* STORAGE */
 let list = JSON.parse(localStorage.getItem("candidates") || "[]");
 let salesList = JSON.parse(localStorage.getItem("salesList") || `["Sales A","Sales B","Sales C"]`);
 let statusList = JSON.parse(localStorage.getItem("statusList") || `["pending","approval","reject"]`);
 
-/* LOAD DROPDOWN */
+/* DATE FORMAT */
+function getCurrentDate() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+/* LOAD DROPDOWN + SEARCH */
 function loadDropdowns() {
-  let sales = document.getElementById("sales");
-  let status = document.getElementById("status");
 
-  sales.innerHTML = "";
+  /* --- Sales Search Dropdown --- */
+  const searchBox = document.getElementById("salesSearch");
+  const menu = document.getElementById("salesMenu");
+
+  renderSalesDropdown("");
+
+  searchBox.addEventListener("input", () => {
+    renderSalesDropdown(searchBox.value.toLowerCase());
+    menu.classList.add("show");
+  });
+
+  function renderSalesDropdown(keyword) {
+    menu.innerHTML = "";
+    salesList
+      .filter(s => s.toLowerCase().includes(keyword))
+      .forEach(s => {
+        const item = document.createElement("button");
+        item.className = "dropdown-item";
+        item.innerText = s;
+        item.onclick = () => {
+          searchBox.value = s;
+          menu.classList.remove("show");
+        };
+        menu.appendChild(item);
+      });
+  }
+
+  searchBox.addEventListener("focus", () => menu.classList.add("show"));
+  document.addEventListener("click", e => {
+    if (!searchBox.contains(e.target) && !menu.contains(e.target))
+      menu.classList.remove("show");
+  });
+
+  /* --- Status Dropdown --- */
+  const status = document.getElementById("status");
   status.innerHTML = "";
-
-  salesList.forEach(s => sales.innerHTML += `<option>${s}</option>`);
   statusList.forEach(s => status.innerHTML += `<option>${s}</option>`);
 
+  /* Load editable textareas */
   document.getElementById("editSales").value = salesList.join("\n");
   document.getElementById("editStatus").value = statusList.join("\n");
 }
 
-/* UPDATE DROPDOWN */
+/* UPDATE DROPDOWN LIST */
 function updateDropdowns() {
   salesList = document.getElementById("editSales").value.split("\n").map(x => x.trim()).filter(x => x);
   statusList = document.getElementById("editStatus").value.split("\n").map(x => x.trim()).filter(x => x);
@@ -153,19 +201,21 @@ function renderTable() {
   let tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
 
-  list.forEach((item, index) => {
+  list.forEach((item, i) => {
     tbody.innerHTML += `
       <tr>
-        <td>${index + 1}</td>
+        <td>${i + 1}</td>
         <td>${item.name}</td>
         <td>${item.exp}</td>
         <td>${item.sales}</td>
         <td>${item.position}</td>
         <td>${item.status}</td>
+        <td>${item.createdDate}</td>
         <td>
-          <button class="btn btn-danger btn-sm" onclick="deleteItem(${index})">Xóa</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteItem(${i})">Xóa</button>
         </td>
-      </tr>`;
+      </tr>
+    `;
   });
 
   updateCounters();
@@ -188,9 +238,10 @@ function addCandidate() {
   list.push({
     name: document.getElementById("candidateName").value,
     exp: document.getElementById("exp").value,
-    sales: document.getElementById("sales").value,
+    sales: document.getElementById("salesSearch").value,
     position: document.getElementById("position").value,
-    status: document.getElementById("status").value
+    status: document.getElementById("status").value,
+    createdDate: getCurrentDate()
   });
 
   localStorage.setItem("candidates", JSON.stringify(list));
@@ -199,9 +250,10 @@ function addCandidate() {
   candidateName.value = "";
   exp.value = "";
   position.value = "";
+  salesSearch.value = "";
 }
 
-/* DELETE ITEM */
+/* DELETE */
 function deleteItem(i) {
   list.splice(i, 1);
   localStorage.setItem("candidates", JSON.stringify(list));
@@ -212,11 +264,19 @@ function deleteItem(i) {
 function exportExcel() {
   let wb = XLSX.utils.book_new();
   let data = [
-    ["STT", "Tên ứng viên", "Kinh nghiệm", "Sales", "Vị trí", "Status"]
+    ["STT", "Tên ứng viên", "Kinh nghiệm", "Sales", "Vị trí", "Status", "Ngày tạo"]
   ];
 
   list.forEach((x, i) => {
-    data.push([ i + 1, x.name, x.exp, x.sales, x.position, x.status ]);
+    data.push([
+      i + 1,
+      x.name,
+      x.exp,
+      x.sales,
+      x.position,
+      x.status,
+      x.createdDate
+    ]);
   });
 
   let ws = XLSX.utils.aoa_to_sheet(data);
@@ -232,4 +292,4 @@ renderTable();
 </script>
 
 </body>
-</html> 
+</html>
