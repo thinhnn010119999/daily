@@ -1,295 +1,819 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>Ứng viên - CRUD Full + Search Dropdown + Export Excel</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scoreboard 5 Người – Responsive (Mobile-first)</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --fg:#e5e7eb; --acc:#22c55e; --warn:#ef4444; --line:#1f2937;
+      --pos:#86efac; --neg:#fca5a5; --chip:#0b1020;
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui, Segoe UI, Roboto, Arial}
 
-<!-- Bootstrap -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    /* ===== Global header fixed ===== */
+    .global-header{
+        min-width: 300px;
+        width: 89%;
+      position: fixed; bottom:0; z-index:999;
+      background:linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+      border-bottom:1px solid var(--line);
+    }
+    .gh-inner{max-width:1100px;margin:0 auto;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+    .gh-title{font-weight:600}
+    .gh-right{display:flex;align-items:center;gap:16px}
+    .gh-pos{color:var(--pos)}
+    .gh-neg{color:var(--neg)}
+    .gh-right b{font-weight:700}
 
-<!-- SheetJS (Export Excel) -->
-<link rel="script" href="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">
+    .wrap{max-width:1100px;margin:12px auto 24px;padding:0 12px}
+    h1{font-size:20px;margin:8px 0 12px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    label{font-size:12px;color:var(--muted)}
+    input[type=text],input[type=number],select{
+      background:#0b1020;border:1px solid var(--line);color:var(--fg);padding:8px;border-radius:10px
+    }
+    input[type=number]{width:100px}
+    .btn{background:#1f2937;border:1px solid var(--line);color:var(--fg);padding:8px 10px;border-radius:10px;cursor:pointer}
+    .btn:hover{filter:brightness(1.08)}
+    .btn.acc{background:var(--acc);border-color:var(--acc);color:#07160d}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line)}
+    .cell-win{opacity:0.7}
 
-<style>
-  /* Custom style cho search dropdown */
-  .dropdown-menu.show {
-    display: block;
-  }
-</style>
+    /* Desktop table */
+    .grid{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:8px;text-align:center}
+    th{position:sticky;top:0;background:#0b1020;z-index:1}
 
+    /* Mobile cards */
+    .mobile-only{display:none}
+    .cards{display:grid;grid-template-columns:1fr;gap:10px}
+    .card{border:1px solid var(--line);border-radius:12px;background:#0b1020;scroll-margin-top: 92px;} /* bù trừ header + sticky bar */
+    .card-hd{display:flex;justify-content:space-between;align-items:center;padding:10px 12px}
+    .card-left{display:flex;gap:10px;align-items:center}
+    .card-hd h3{margin:0;font-size:15px}
+    .chip{font-size:12px;color:var(--muted);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+    .card-bd{border-top:1px solid var(--line);padding:10px 12px;display:none}
+    .card.open .card-bd{display:block}
+
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .form-row{display:flex;flex-direction:column;gap:4px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:12px}
+    .score{font-weight:600}
+    .pos{color:var(--pos)} .neg{color:var(--neg)}
+    .sec-title{margin:8px 0 4px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+
+    /* Toggle button */
+    .toggle-btn{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid var(--line);background:#162036;color:var(--fg);
+      padding:6px 10px;border-radius:999px;cursor:pointer;font-size:12px
+    }
+    .toggle-btn .arrow{display:inline-block;transition:transform .2s ease}
+    .card.open .toggle-btn .arrow{transform:rotate(90deg)} /* ▶ -> rotated */
+
+    /* Mobile actions: sticky + quick nav */
+    .mobile-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .mobile-sticky{
+      position:sticky; top:8px; z-index:5;
+      background:linear-gradient(180deg, rgba(17,24,39,0.9), rgba(17,24,39,0.6));
+      border:1px solid var(--line); border-radius:10px; padding:8px;
+      backdrop-filter: blur(4px);
+    }
+    .mobile-actions input[type=number]{width:120px}
+
+    /* Scroll snap trên mobile */
+    @media (max-width: 640px){
+        .btn-acc1 {
+            display: none;
+        }
+      .wrap{padding:0 10px}
+      .desktop-only{display:none}
+      .mobile-only{display:block}
+      input[type=number]{width:100%}
+      .panel .row > *{flex:1 1 auto}
+      .cards{scroll-snap-type:y proximity}
+      .card{scroll-snap-align:start}
+    }
+  </style>
 </head>
-<body class="bg-light">
+<body>
 
-<div class="container py-4">
+<!-- ===== Fixed header with totals ===== -->
 
-  <h3 class="text-center mb-4">Quản lý Ứng viên (Full CRUD + Search Dropdown + Export Excel)</h3>
 
-  <!-- Settings -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5>Chỉnh sửa Dropdown</h5>
+<div class="wrap">
+  <h1>Responsive (Mobile-first)</h1>
+
+  <!-- Config -->
+  <div class="panel">
+    <div class="row" style="align-items:flex-end">
+      <div style="flex:1 1 520px;min-width:260px">
+        <label>Tên người chơi (5):</label>
+        <div class="row">
+          <input id="p0" type="text" value="Người chơi 1" />
+          <input id="p1" type="text" value="Người chơi 2" />
+          <input id="p2" type="text" value="Người chơi 3" />
+          <input id="p3" type="text" value="Người chơi 4" />
+          <input id="p4" type="text" value="Người chơi 5" />
+        </div>
+      </div>
       <div class="row">
-
-        <div class="col-md-6">
-          <label class="form-label">Danh sách Sales</label>
-          <textarea id="editSales" class="form-control" rows="3"></textarea>
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label">Danh sách Status</label>
-          <textarea id="editStatus" class="form-control" rows="3"></textarea>
-        </div>
-
-        <div class="col-12 mt-2">
-          <button class="btn btn-success" onclick="updateDropdowns()">Cập nhật Dropdown</button>
-        </div>
-
+        <button class="btn-acc1 btn acc" id="addRound">+ Thêm ván</button>
+        <button class="btn" id="clearAll">Xoá tất cả</button>
+        <button class="btn" id="exportJson">Xuất JSON</button>
+        <label for="importJson" class="btn">Nhập JSON</label>
+        <input id="importJson" type="file" accept="application/json" style="display:none" />
+        <span class="tag small">Lưu tự động (LocalStorage)</span>
       </div>
     </div>
+
+    <div class="row" style="margin-top:8px">
+      <label class="small"><input type="checkbox" id="distributeAdjust" /> Trừ đều điều chỉnh cho 4 người thua</label>
+      <span class="small muted">Bật: người thắng +adj, 4 người thua chia đều −adj (phần lẻ bù tuần tự). Tắt: chỉ áp vào người thắng.</span>
+    </div>
+
+    <!-- Toggle toàn cục: Làm tròn số lẻ -->
+    <div class="row" style="margin-top:8px">
+      <label class="small">
+        <input type="checkbox" id="roundingToggle" checked />
+        Làm tròn số lẻ (3→4, 7→8)
+      </label>
+      <span class="small muted">Tắt: dùng giá trị thực, không làm tròn.</span>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="scrollTopBtn">Cuộn đầu</button>
+      <button class="btn" id="scrollBottomBtn">Cuộn cuối</button>
+    </div>
   </div>
 
-  <!-- Status Counter -->
-  <div class="row text-center mb-4">
-    <div class="col-md-4">
-      <div class="p-3 bg-warning rounded">Pending: <b id="countPending">0</b></div>
+  <!-- Desktop Table -->
+  <div class="panel desktop-only">
+    <div class="grid" id="grid">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th>Ván</th>
+            <th>Người thắng</th>
+            <th class="muted" colspan="5">Số lá còn lại (≥ 0)</th>
+            <th id="hdrRoundedLabel" class="muted" colspan="5">Sau làm tròn</th>
+            <th class="muted" colspan="5">Điểm +/-</th>
+            <th>Điều chỉnh</th>
+          </tr>
+          <tr>
+            <th></th><th></th>
+            <th id="hC"></th><th id="hD"></th><th id="hE"></th><th id="hF"></th><th id="hG"></th>
+            <th id="hH"></th><th id="hI"></th><th id="hJ"></th><th id="hK"></th><th id="hL"></th>
+            <th id="hM"></th><th id="hN"></th><th id="hO"></th><th id="hP"></th><th id="hQ"></th>
+            <th class="small">0 / ±20 / ±30</th>
+          </tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
     </div>
-    <div class="col-md-4">
-      <div class="p-3 bg-success text-white rounded">Approval: <b id="countApproval">0</b></div>
-    </div>
-    <div class="col-md-4">
-      <div class="p-3 bg-danger text-white rounded">Reject: <b id="countReject">0</b></div>
+    <div class="small muted" style="margin-top:8px">
+      * Lẻ → làm tròn lên (nếu bật). Tắt làm tròn: dùng giá trị thực. Người thắng nhận tổng của người thua (theo chế độ đang chọn). Không giới hạn số lá (≥ 0).
     </div>
   </div>
 
-  <!-- Form Add -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5>Thêm ứng viên mới</h5>
-
-      <div class="row g-3">
-
-        <div class="col-md-3">
-          <label class="form-label">Tên ứng viên</label>
-          <input id="candidateName" class="form-control">
-        </div>
-
-        <div class="col-md-2">
-          <label class="form-label">Kinh nghiệm</label>
-          <input id="exp" type="number" class="form-control">
-        </div>
-
-        <!-- SALES SEARCH DROPDOWN -->
-        <div class="col-md-3">
-          <label class="form-label">Sales</label>
-          <div class="dropdown">
-            <input type="text" class="form-control" id="salesSearch" placeholder="Tìm Sales...">
-            <div class="dropdown-menu w-100" id="salesMenu" style="max-height:200px; overflow-y:auto;"></div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <label class="form-label">Vị trí</label>
-          <input id="position" class="form-control">
-        </div>
-
-        <div class="col-md-2">
-          <label class="form-label">Status</label>
-          <select id="status" class="form-select"></select>
-        </div>
-
-        <div class="col-12">
-          <button onclick="addCandidate()" class="btn btn-primary mt-2">Thêm</button>
-        </div>
+  <!-- Mobile Cards -->
+  <div class="panel mobile-only">
+    <div class="mobile-sticky" style="margin-bottom:10px">
+      <div class="mobile-actions">
+        <button class="btn acc" id="addRoundSticky">+ Thêm ván</button>
+        <button class="btn" id="prevRoundBtn">↑ Ván trước</button>
+        <button class="btn" id="nextRoundBtn">↓ Ván sau</button>
+        <input id="jumpInput" type="number" min="1" placeholder="Đi đến ván #" />
+        <button class="btn" id="jumpBtn">Đi</button>
+        <button class="btn" id="expandAllBtn">Mở tất cả</button>
+        <button class="btn" id="collapseAllBtn">Đóng tất cả</button>
       </div>
     </div>
+    <div id="cards" class="cards"></div>
+    <div class="small muted" style="margin-top:8px">
+      * Lẻ → làm tròn lên (nếu bật). Tắt làm tròn: dùng giá trị thực.  
+      • Tip: dùng “+ Thêm ván” trong thanh sticky, “↑/↓” hoặc nhập ván # để nhảy nhanh.
+    </div>
   </div>
 
-  <!-- Export Excel -->
-  <button class="btn btn-success mb-3" onclick="exportExcel()">Export Excel</button>
+  <!-- Summary -->
+  <div class="panel">
+    <h3 style="margin:0 0 10px">Tổng kết</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Người chơi</th>
+          <th>Tổng lá bài thắng (+/-)</th>
+          <th>Số ván thắng</th>
+          <th>Tổng số ván</th>
+          <th>Trung bình/1 ván thắng</th>
+        </tr>
+      </thead>
+      <tbody id="sumBody"></tbody>
+    </table>
+  </div>
 
-  <!-- Table -->
-  <table class="table table-bordered table-striped">
-    <thead class="table-dark">
-      <tr>
-        <th>STT</th>
-        <th>Tên ứng viên</th>
-        <th>Kinh nghiệm</th>
-        <th>Sales</th>
-        <th>Vị trí</th>
-        <th>Status</th>
-        <th>Ngày tạo</th>
-        <th>Hành động</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
-
+  <div style="position: relative;" class="panel small muted">
+    <div class="global-header">
+  <div class="gh-inner">
+    <div class="gh-title">Bảng theo dõi – 5 người</div>
+    <div class="gh-right">
+      <span class="gh-pos">Tổng +: <b id="ghPos">0</b></span>
+      <span class="gh-neg">Tổng −: <b id="ghNeg">0</b></span>
+    </div>
+  </div>
+</div>
+    <!-- <b>Mẹo mobile:</b> dùng nút <b>▶ Mở/Đóng</b> từng ván + “↑/↓/Đi đến ván #” để điều hướng nhanh. Xoá ô để gõ lại; hệ thống chỉ lưu & chuẩn hoá khi rời ô hoặc nhấn Enter (preview realtime vẫn cập nhật). -->
+  </div>
 </div>
 
 <script>
-/* STORAGE */
-let list = JSON.parse(localStorage.getItem("candidates") || "[]");
-let salesList = JSON.parse(localStorage.getItem("salesList") || `["Sales A","Sales B","Sales C"]`);
-let statusList = JSON.parse(localStorage.getItem("statusList") || `["pending","approval","reject"]`);
+(function(){
+  const N=5;
+  const $=sel=>document.querySelector(sel);
+  const LS_KEY='cardgame_5p_resp_v6'; // bump: fixed header totals + addRound in sticky
 
-/* DATE FORMAT */
-function getCurrentDate() {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-}
-
-/* LOAD DROPDOWN + SEARCH */
-function loadDropdowns() {
-
-  /* --- Sales Search Dropdown --- */
-  const searchBox = document.getElementById("salesSearch");
-  const menu = document.getElementById("salesMenu");
-
-  renderSalesDropdown("");
-
-  searchBox.addEventListener("input", () => {
-    renderSalesDropdown(searchBox.value.toLowerCase());
-    menu.classList.add("show");
-  });
-
-  function renderSalesDropdown(keyword) {
-    menu.innerHTML = "";
-    salesList
-      .filter(s => s.toLowerCase().includes(keyword))
-      .forEach(s => {
-        const item = document.createElement("button");
-        item.className = "dropdown-item";
-        item.innerText = s;
-        item.onclick = () => {
-          searchBox.value = s;
-          menu.classList.remove("show");
-        };
-        menu.appendChild(item);
-      });
+  function defaultState(){
+    return {
+      players:["Người chơi 1","Người chơi 2","Người chơi 3","Người chơi 4","Người chơi 5"],
+      // rounds: {winner: idx|null, remain:[number>=0], remainStr:[string], adjust:number, open:boolean}
+      rounds:[],
+      distributeAdjust: true,
+      roundingEnabled: true,
+      lastOpenIdx: 0
+    };
   }
 
-  searchBox.addEventListener("focus", () => menu.classList.add("show"));
-  document.addEventListener("click", e => {
-    if (!searchBox.contains(e.target) && !menu.contains(e.target))
-      menu.classList.remove("show");
+  let state = load();
+
+  // Bind players
+  for(let i=0;i<N;i++){
+    const ip = document.getElementById('p'+i);
+    ip.value = state.players[i]||('Người chơi '+(i+1));
+    ip.addEventListener('input', ()=>{
+      state.players[i]=ip.value;
+      persistAndRerender();
+    });
+  }
+
+  // Buttons (desktop)
+  const grid = document.getElementById('grid');
+  document.getElementById('addRound').addEventListener('click', addRound);
+  document.getElementById('clearAll').addEventListener('click', ()=>{
+    if(confirm('Xoá toàn bộ dữ liệu?')){
+      state = defaultState();
+      persistAndRerender();
+      for(let i=0;i<N;i++){document.getElementById('p'+i).value=state.players[i];}
+    }
+  });
+  document.getElementById('exportJson').addEventListener('click',()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cardgame_5players.json'; a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('importJson').addEventListener('change',(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const obj=JSON.parse(reader.result);
+        if(!Array.isArray(obj.players)||obj.players.length!==5||!Array.isArray(obj.rounds)) throw new Error('Định dạng không hợp lệ');
+        if(typeof obj.distributeAdjust!=='boolean') obj.distributeAdjust = true;
+        if(typeof obj.roundingEnabled!=='boolean') obj.roundingEnabled = true;
+        if(typeof obj.lastOpenIdx!=='number') obj.lastOpenIdx = 0;
+        obj.rounds.forEach(r=>{
+          if(typeof r.adjust!=='number') r.adjust=0;
+          if(!Array.isArray(r.remain)||r.remain.length!==5) r.remain=[0,0,0,0,0];
+          if(!Array.isArray(r.remainStr)||r.remainStr.length!==5) r.remainStr = r.remain.map(n=>String(n));
+          if(typeof r.open!=='boolean') r.open = false;
+        });
+        state=obj; persistAndRerender();
+        for(let i=0;i<N;i++){document.getElementById('p'+i).value=state.players[i];}
+      }catch(err){ alert('Import lỗi: '+err.message); }
+    };
+    reader.readAsText(f);
   });
 
-  /* --- Status Dropdown --- */
-  const status = document.getElementById("status");
-  status.innerHTML = "";
-  statusList.forEach(s => status.innerHTML += `<option>${s}</option>`);
-
-  /* Load editable textareas */
-  document.getElementById("editSales").value = salesList.join("\n");
-  document.getElementById("editStatus").value = statusList.join("\n");
-}
-
-/* UPDATE DROPDOWN LIST */
-function updateDropdowns() {
-  salesList = document.getElementById("editSales").value.split("\n").map(x => x.trim()).filter(x => x);
-  statusList = document.getElementById("editStatus").value.split("\n").map(x => x.trim()).filter(x => x);
-
-  localStorage.setItem("salesList", JSON.stringify(salesList));
-  localStorage.setItem("statusList", JSON.stringify(statusList));
-
-  loadDropdowns();
-}
-
-/* RENDER TABLE */
-function renderTable() {
-  let tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
-
-  list.forEach((item, i) => {
-    tbody.innerHTML += `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${item.name}</td>
-        <td>${item.exp}</td>
-        <td>${item.sales}</td>
-        <td>${item.position}</td>
-        <td>${item.status}</td>
-        <td>${item.createdDate}</td>
-        <td>
-          <button class="btn btn-danger btn-sm" onclick="deleteItem(${i})">Xóa</button>
-        </td>
-      </tr>
-    `;
+  // Toggle chia đều điều chỉnh
+  const chk = document.getElementById('distributeAdjust');
+  chk.checked = !!state.distributeAdjust;
+  chk.addEventListener('change', ()=>{
+    state.distributeAdjust = chk.checked;
+    persistAndRerender();
   });
 
-  updateCounters();
-}
-
-/* COUNT STATUS */
-function updateCounters() {
-  document.getElementById("countPending").innerText =
-    list.filter(x => x.status === "pending").length;
-
-  document.getElementById("countApproval").innerText =
-    list.filter(x => x.status === "approval").length;
-
-  document.getElementById("countReject").innerText =
-    list.filter(x => x.status === "reject").length;
-}
-
-/* ADD CANDIDATE */
-function addCandidate() {
-  list.push({
-    name: document.getElementById("candidateName").value,
-    exp: document.getElementById("exp").value,
-    sales: document.getElementById("salesSearch").value,
-    position: document.getElementById("position").value,
-    status: document.getElementById("status").value,
-    createdDate: getCurrentDate()
+  // Toggle làm tròn toàn cục
+  const roundChk = document.getElementById('roundingToggle');
+  roundChk.checked = !!state.roundingEnabled;
+  roundChk.addEventListener('change', ()=>{
+    state.roundingEnabled = roundChk.checked;
+    persistAndRerender();
   });
 
-  localStorage.setItem("candidates", JSON.stringify(list));
+  // Desktop scroll buttons
+  document.getElementById('scrollTopBtn').addEventListener('click', ()=> {
+    if(grid && typeof grid.scrollTo === 'function') grid.scrollTo({top:0,behavior:'smooth'});
+  });
+  document.getElementById('scrollBottomBtn').addEventListener('click', ()=> {
+    if(grid && typeof grid.scrollTo === 'function') grid.scrollTo({top:grid.scrollHeight,behavior:'smooth'});
+  });
+
+  // Mobile sticky: add round + quick-nav
+  document.getElementById('addRoundSticky').addEventListener('click', ()=> addRound());
+  const prevBtn = document.getElementById('prevRoundBtn');
+  const nextBtn = document.getElementById('nextRoundBtn');
+  const jumpBtn = document.getElementById('jumpBtn');
+  const jumpInput = document.getElementById('jumpInput');
+
+  document.getElementById('expandAllBtn').addEventListener('click', ()=>{
+    state.rounds.forEach(r=>r.open=true);
+    persistAndRerender();
+    scrollToRound(0);
+    state.lastOpenIdx = 0;
+    save();
+  });
+  document.getElementById('collapseAllBtn').addEventListener('click', ()=>{
+    state.rounds.forEach(r=>r.open=false);
+    persistAndRerender();
+  });
+
+  prevBtn.addEventListener('click', ()=>{
+    const total = state.rounds.length;
+    if(total===0) return;
+    let idx = Math.max(0, (state.lastOpenIdx || 0) - 1);
+    if(state.rounds[idx]) state.rounds[idx].open = true;
+    state.lastOpenIdx = idx;
+    persistAndRerender();
+    setTimeout(()=>scrollToRound(idx), 60);
+    save();
+  });
+
+  nextBtn.addEventListener('click', ()=>{
+    const total = state.rounds.length;
+    if(total===0) return;
+    let idx = Math.min(total-1, (state.lastOpenIdx || 0) + 1);
+    if(state.rounds[idx]) state.rounds[idx].open = true;
+    state.lastOpenIdx = idx;
+    persistAndRerender();
+    setTimeout(()=>scrollToRound(idx), 60);
+    save();
+  });
+
+  jumpBtn.addEventListener('click', ()=>{
+    const total = state.rounds.length;
+    if(total===0) return;
+    let n = Math.floor(Number(jumpInput.value));
+    if(!Number.isFinite(n) || n<1) n = 1;
+    if(n>total) n = total;
+    const idx = n-1;
+    if(state.rounds[idx]) state.rounds[idx].open = true;
+    state.lastOpenIdx = idx;
+    persistAndRerender();
+    setTimeout(()=>scrollToRound(idx), 60);
+    save();
+  });
+
+  // ===== Cuộn mượt đến card ván (mobile) – window-based + fallback =====
+  function scrollToRound(idx){
+    const cards = document.querySelectorAll('#cards .card');
+    const el = cards[idx];
+    if (!el) return;
+
+    // Chiều cao sticky bar + global header
+    const sticky = document.querySelector('.mobile-sticky');
+    const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
+    const gh = document.querySelector('.global-header');
+    const ghH = gh ? gh.getBoundingClientRect().height : 0;
+
+    // Toạ độ card trong trang
+    const rect = el.getBoundingClientRect();
+    const pageY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    const targetTop = pageY + rect.top - (ghH + stickyH + 12); // trừ thêm 12px để thoáng
+
+    try {
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    } catch (e) {
+      animateScrollTo(Math.max(0, targetTop), 350);
+    }
+  }
+
+  // Fallback mượt bằng requestAnimationFrame (easeOutCubic)
+  function animateScrollTo(targetY, duration){
+    const startY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    const delta = targetY - startY;
+    const start = performance.now();
+
+    function step(now){
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      window.scrollTo(0, startY + delta * eased);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function persistAndRerender(){
+    save();
+    renderHeaders();
+    renderTable();
+    renderCards();
+    renderSummary();
+    renderGlobalHeaderTotals(); // cập nhật totals trên header cố định
+  }
+
+  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+  function load(){
+    try{
+      const s=localStorage.getItem(LS_KEY);
+      if(!s) return defaultState();
+      const x=JSON.parse(s);
+      if(typeof x.distributeAdjust!=='boolean') x.distributeAdjust = true;
+      if(typeof x.roundingEnabled!=='boolean') x.roundingEnabled = true;
+      if(typeof x.lastOpenIdx!=='number') x.lastOpenIdx = 0;
+      x.rounds.forEach(r=>{
+        if(typeof r.adjust!=='number') r.adjust=0;
+        if(!Array.isArray(r.remain)||r.remain.length!==5) r.remain=[0,0,0,0,0];
+        if(!Array.isArray(r.remainStr)||r.remainStr.length!==5) r.remainStr = r.remain.map(n=>String(n));
+        if(typeof r.open!=='boolean') r.open=false;
+      });
+      return x;
+    }catch{return defaultState();}
+  }
+
+  function addRound(){
+    state.rounds.push({
+      winner:null,
+      remain:[0,0,0,0,0],
+      remainStr:["0","0","0","0","0"],
+      adjust:0,
+      open:true
+    });
+    state.lastOpenIdx = state.rounds.length - 1;
+    persistAndRerender();
+    setTimeout(()=>scrollToRound(state.lastOpenIdx), 80);
+  }
+
+  function renderHeaders(){
+    const ids=['hC','hD','hE','hF','hG','hH','hI','hJ','hK','hL','hM','hN','hO','hP','hQ'];
+    const groups=[...state.players, ...state.players, ...state.players];
+    ids.forEach((id,i)=>{ const el=document.getElementById(id); if(el) el.textContent = groups[i]||''; });
+
+    // Đổi nhãn cột hiển thị theo toggle
+    const hdrRounded = document.getElementById('hdrRoundedLabel');
+    if(hdrRounded){
+      hdrRounded.textContent = state.roundingEnabled ? 'Sau làm tròn' : 'Giá trị (không làm tròn)';
+    }
+  }
+
+  function roundedNumber(x){
+    if(x===null||x===undefined||x==='') return '';
+    x = Math.floor(Number(x)||0);
+    if(x<0) x=0;
+    return (x%2===1)? x+1 : x;
+  }
+
+  // PREVIEW từ remainStr: rỗng => 0 tạm
+  function calcRow(r){
+    const remainTemp = r.remainStr.map(s=>{
+      if(s===''||s===null||s===undefined) return 0;
+      let n = Math.floor(Number(s));
+      if(!Number.isFinite(n) || n < 0) n = 0;
+      return n;
+    });
+
+    // Áp dụng toggle toàn cục
+    const effective = state.roundingEnabled
+      ? remainTemp.map(roundedNumber)  // bật làm tròn
+      : remainTemp.slice();            // tắt làm tròn: giữ nguyên
+
+    const winner = (r.winner==null ? null : Number(r.winner));
+
+    // Tổng loại trừ người thắng
+    let total = 0;
+    for(let i=0;i<N;i++){
+      if(i===winner) continue;
+      total += effective[i];
+    }
+
+    // Delta cơ bản
+    const delta = new Array(N).fill(0);
+    for(let i=0;i<N;i++){
+      if(i===winner) delta[i]= total; else delta[i]= -effective[i];
+    }
+
+    // Điều chỉnh ±20/±30
+    const adj = Number(r.adjust)||0;
+    if(adj!==0 && winner!=null){
+      if(state.distributeAdjust){
+        delta[winner] += adj;
+        const losers=[]; for(let i=0;i<N;i++) if(i!==winner) losers.push(i);
+        const absAdj=Math.abs(adj);
+        const q=Math.trunc(absAdj/losers.length);
+        const rem=absAdj - q*losers.length;
+        losers.forEach((i,idx)=>{
+          const take=q + (idx<rem ? 1 : 0);
+          delta[i] += (adj>0 ? -take : +take);
+        });
+      }else{
+        delta[winner] += adj;
+      }
+    }
+
+    return { remain: remainTemp, roundeds: effective, winner, total, delta };
+  }
+    function renderTable(){
+    const tb = document.getElementById('body');
+    if(!tb) return;
+    tb.innerHTML='';
+
+    state.rounds.forEach((r,idx)=>{
+      const tr=document.createElement('tr');
+
+      const tdIdx=document.createElement('td'); tdIdx.textContent=idx+1; tr.appendChild(tdIdx);
+
+      const tdW=document.createElement('td');
+      const sel=document.createElement('select');
+      sel.innerHTML='<option value="">-- chọn --</option>'+state.players.map((p,i)=>`<option value="${i}">${p}</option>`).join('');
+      sel.value=(r.winner===null? '': String(r.winner));
+      sel.addEventListener('change',()=>{
+        r.winner = sel.value===''? null: Number(sel.value);
+        if(r.winner!=null){
+          r.remain[r.winner]=0;
+          if(!r.remainStr) r.remainStr = r.remain.map(n=>String(n));
+          r.remainStr[r.winner]='0';
+        }
+        persistAndRerender();
+      });
+      tdW.appendChild(sel); tr.appendChild(tdW);
+
+      const currentWinner=r.winner;
+      if(!r.remainStr || r.remainStr.length!==N) r.remainStr = r.remain.map(n=>String(n));
+
+      for(let i=0;i<N;i++){
+        const td=document.createElement('td');
+        const ip=document.createElement('input');
+        ip.type='number'; ip.inputMode='numeric'; ip.step='1'; ip.min='0'; ip.placeholder='0';
+        ip.value = (r.remainStr[i]!==undefined) ? r.remainStr[i] : String(r.remain[i]||0);
+
+        if(currentWinner===i){ ip.disabled=true; ip.classList.add('cell-win'); ip.value='0'; }
+
+        ip.addEventListener('input', ()=>{
+          r.remainStr[i] = ip.value;
+          save(); renderTable(); renderCards(); renderSummary();
+        });
+
+        const commit=()=>{
+          if(r.winner===i){ r.remain[i]=0; r.remainStr[i]='0'; }
+          else{
+            let s = (r.remainStr[i] ?? '').trim();
+            let n = Math.floor(Number(s));
+            if(!Number.isFinite(n) || n < 0) n=0;
+            r.remain[i]=n; r.remainStr[i]=String(n);
+          }
+          persistAndRerender();
+        };
+        ip.addEventListener('blur', commit);
+        ip.addEventListener('keydown', e=>{ if(e.key==='Enter') ip.blur(); });
+
+        td.appendChild(ip); tr.appendChild(td);
+      }
+
+      const calc=calcRow(r);
+      for(let i=0;i<N;i++){
+        const td=document.createElement('td'); td.textContent=calc.roundeds[i]; tr.appendChild(td);
+      }
+      for(let i=0;i<N;i++){
+        const td=document.createElement('td');
+        const val=calc.delta[i];
+        td.textContent=(val>0? '+'+val: String(val));
+        td.style.color = val>=0? '#86efac':'#fca5a5';
+        tr.appendChild(td);
+      }
+
+      const tdAdj=document.createElement('td');
+      const selAdj=document.createElement('select');
+      const options=[0,80,120];
+      selAdj.innerHTML=options.map(v=>`<option value="${v}">${v>0? '+'+v: v}</option>`).join('');
+      selAdj.value=String(Number(r.adjust||0));
+      selAdj.addEventListener('change',()=>{ r.adjust=Number(selAdj.value)||0; persistAndRerender(); });
+      tdAdj.appendChild(selAdj);
+      tr.appendChild(tdAdj);
+
+      tb.appendChild(tr);
+    });
+  }
+
+  // ===== Mobile Cards =====
+  function renderCards(){
+    const container = document.getElementById('cards');
+    if(!container) return;
+    container.innerHTML='';
+
+    state.rounds.forEach((r,idx)=>{
+      const card = document.createElement('div');
+      card.className='card';
+      if(r.open) card.classList.add('open');
+      card.dataset.index = String(idx);
+
+      const calc = calcRow(r);
+      const total = calc.total;
+      const w = calc.winner;
+      const winName = (w==null)? 'Chưa chọn' : state.players[w];
+
+      // Header with collapse button
+      const hd = document.createElement('div');
+      hd.className='card-hd';
+
+      const left = document.createElement('div');
+      left.className='card-left';
+      const h3 = document.createElement('h3'); h3.textContent = `Ván ${idx+1}`;
+      const chip1 = document.createElement('span'); chip1.className='chip'; chip1.textContent = `Thắng: ${winName}`;
+      const chip2 = document.createElement('span'); chip2.className='chip'; chip2.textContent = `Tổng +: ${(w==null)? 0 : total}`;
+      left.appendChild(h3); left.appendChild(chip1); left.appendChild(chip2);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toggle-btn';
+      const arrow = document.createElement('span');
+      arrow.className='arrow';
+      arrow.textContent = '▶';
+      const btnLbl = document.createElement('span');
+      btnLbl.textContent = r.open ? 'Đóng' : 'Mở';
+      btn.appendChild(arrow); btn.appendChild(btnLbl);
+
+      btn.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        r.open = !r.open;
+        if(r.open){
+          state.lastOpenIdx = idx;
+          save();
+        }
+        persistAndRerender();
+        setTimeout(()=>scrollToRound(idx), 60);
+      });
+
+      hd.appendChild(left);
+      hd.appendChild(btn);
+      card.appendChild(hd);
+
+      // Body
+      const bd = document.createElement('div'); bd.className='card-bd';
+
+      // Winner + Adjust section
+      const sectionTop = document.createElement('div');
+      sectionTop.innerHTML = `<div class="sec-title">Thiết lập ván</div>`;
+      const topGrid = document.createElement('div'); topGrid.className='form-grid';
+
+      const winnerWrap = document.createElement('div'); winnerWrap.className='form-row';
+      const winnerLbl = document.createElement('label'); winnerLbl.textContent = 'Người thắng';
+      const winnerSel = document.createElement('select');
+      winnerSel.innerHTML = '<option value="">-- chọn --</option>' + state.players.map((p,i)=>`<option value="${i}">${p}</option>`).join('');
+      winnerSel.value = (r.winner===null? '': String(r.winner));
+      winnerSel.addEventListener('change',()=>{
+        r.winner = winnerSel.value===''? null: Number(winnerSel.value);
+        if(r.winner!=null){
+          r.remain[r.winner]=0;
+          if(!r.remainStr) r.remainStr = r.remain.map(n=>String(n));
+          r.remainStr[r.winner]='0';
+        }
+        state.lastOpenIdx = idx;
+        persistAndRerender();
+        setTimeout(()=>scrollToRound(idx), 60);
+      });
+      winnerWrap.appendChild(winnerLbl); winnerWrap.appendChild(winnerSel);
+      topGrid.appendChild(winnerWrap);
+
+      const adjWrap = document.createElement('div'); adjWrap.className='form-row';
+      const adjLbl = document.createElement('label'); adjLbl.textContent = 'Sâm/cháy';
+      const adjSel = document.createElement('select');
+      [0,80,120].forEach(v=>{
+        const op=document.createElement('option'); op.value=String(v); op.textContent = (v>0? '+'+v: String(v)); adjSel.appendChild(op);
+      });
+      adjSel.value = String(Number(r.adjust||0));
+      adjSel.addEventListener('change',()=>{
+        r.adjust = Number(adjSel.value)||0;
+        state.lastOpenIdx = idx;
+        persistAndRerender();
+        setTimeout(()=>scrollToRound(idx), 60);
+      });
+      adjWrap.appendChild(adjLbl); adjWrap.appendChild(adjSel);
+      topGrid.appendChild(adjWrap);
+
+      sectionTop.appendChild(topGrid);
+      bd.appendChild(sectionTop);
+
+      // Inputs per player
+      const sectionPlayers = document.createElement('div');
+      sectionPlayers.innerHTML = `<div class="sec-title">Số lá còn lại (≥ 0) & Điểm</div>`;
+      const pg = document.createElement('div'); pg.className='form-grid';
+
+      if(!r.remainStr || r.remainStr.length!==N) r.remainStr = r.remain.map(n=>String(n));
+      for(let i=0;i<N;i++){
+        const col = document.createElement('div'); col.className='form-row';
+
+        // Nhãn hiển thị theo toggle
+        const labelRounded = state.roundingEnabled
+          ? `làm tròn: ${calc.roundeds[i]}`
+          : `giá trị: ${calc.roundeds[i]}`;
+        const lb = document.createElement('label'); lb.innerHTML = `${state.players[i]} <span class="pill">${labelRounded}</span>`;
+
+        const ip = document.createElement('input');
+        ip.type='number'; ip.inputMode='numeric'; ip.step='1'; ip.min='0'; ip.placeholder='0';
+        ip.value = (r.remainStr[i]!==undefined) ? r.remainStr[i] : String(r.remain[i]||0);
+
+        if(r.winner===i){ ip.disabled=true; ip.classList.add('cell-win'); ip.value='0'; }
+
+        ip.addEventListener('input', ()=>{
+          r.remainStr[i] = ip.value;
+          state.lastOpenIdx = idx;
+          save(); renderCards(); renderTable(); renderSummary();
+          setTimeout(()=>scrollToRound(idx), 0);
+        });
+        ip.addEventListener('blur', ()=>{
+          if(r.winner===i){ r.remain[i]=0; r.remainStr[i]='0'; }
+          else{
+            let s = (r.remainStr[i] ?? '').trim();
+            let n = Math.floor(Number(s));
+            if(!Number.isFinite(n) || n < 0) n=0;
+            r.remain[i]=n; r.remainStr[i]=String(n);
+          }
+          state.lastOpenIdx = idx;
+          persistAndRerender();
+          setTimeout(()=>scrollToRound(idx), 60);
+        });
+        ip.addEventListener('keydown', e=>{ if(e.key==='Enter') ip.blur(); });
+
+        const sc = document.createElement('div');
+        const val = calc.delta[i];
+        sc.className = 'score ' + (val>=0 ? 'pos':'neg');
+        sc.textContent = (val>0? '+'+val: String(val));
+
+        col.appendChild(lb); col.appendChild(ip); col.appendChild(sc);
+        pg.appendChild(col);
+      }
+      sectionPlayers.appendChild(pg);
+      bd.appendChild(sectionPlayers);
+
+      card.appendChild(bd);
+      container.appendChild(card);
+    });
+  }
+
+  // Tính tổng (cho Summary & Header)
+  function computeTotals(){
+    const sums=new Array(N).fill(0);
+    const wins=new Array(N).fill(0);
+    let totalRounds=0;
+    state.rounds.forEach(r=>{
+      const c=calcRow(r);
+      for(let i=0;i<N;i++) sums[i]+=c.delta[i];
+      if(c.winner!=null){ wins[c.winner]++; totalRounds++; }
+    });
+    const pos = sums.reduce((a,b)=> a + (b>0? b:0), 0);
+    const neg = sums.reduce((a,b)=> a + (b<0? b:0), 0); // giá trị âm
+    return {sums, wins, totalRounds, pos, neg};
+  }
+
+  function renderSummary(){
+    const {sums, wins, totalRounds} = computeTotals();
+
+    const sb=document.getElementById('sumBody');
+    sb.innerHTML='';
+    for(let i=0;i<N;i++){
+      const tr=document.createElement('tr');
+      const tdN=document.createElement('td'); tdN.textContent=state.players[i]; tr.appendChild(tdN);
+      const tdS=document.createElement('td'); tdS.textContent=sums[i]; tdS.style.textAlign='right'; tr.appendChild(tdS);
+      const tdW=document.createElement('td'); tdW.textContent=wins[i]; tdW.style.textAlign='center'; tr.appendChild(tdW);
+      const tdT=document.createElement('td'); tdT.textContent=totalRounds; tdT.style.textAlign='center'; tr.appendChild(tdT);
+      const tdA=document.createElement('td'); tdA.textContent = wins[i]>0 ? (sums[i]/wins[i]).toFixed(2) : ''; tdA.style.textAlign='center'; tr.appendChild(tdA);
+      sb.appendChild(tr);
+    }
+  }
+
+  // Cập nhật tổng dương/âm trên header cố định
+  function renderGlobalHeaderTotals(){
+    const {pos, neg} = computeTotals();
+    const p = document.getElementById('ghPos');
+    const n = document.getElementById('ghNeg');
+    if(p) p.textContent = pos;
+    if(n) n.textContent = neg; // giá trị âm
+  }
+
+  // Initial render
+  renderHeaders();
   renderTable();
-
-  candidateName.value = "";
-  exp.value = "";
-  position.value = "";
-  salesSearch.value = "";
-}
-
-/* DELETE */
-function deleteItem(i) {
-  list.splice(i, 1);
-  localStorage.setItem("candidates", JSON.stringify(list));
-  renderTable();
-}
-
-/* EXPORT EXCEL */
-function exportExcel() {
-  let wb = XLSX.utils.book_new();
-  let data = [
-    ["STT", "Tên ứng viên", "Kinh nghiệm", "Sales", "Vị trí", "Status", "Ngày tạo"]
-  ];
-
-  list.forEach((x, i) => {
-    data.push([
-      i + 1,
-      x.name,
-      x.exp,
-      x.sales,
-      x.position,
-      x.status,
-      x.createdDate
-    ]);
-  });
-
-  let ws = XLSX.utils.aoa_to_sheet(data);
-  XLSX.utils.book_append_sheet(wb, ws, "Danh sách");
-
-  XLSX.writeFile(wb, "Ung_vien.xlsx");
-}
-
-/* INIT */
-loadDropdowns();
-renderTable();
-
+  renderCards();
+  renderSummary();
+  renderGlobalHeaderTotals();
+  if(state.rounds.length===0){ addRound(); }
+})();
 </script>
-
 </body>
 </html>
